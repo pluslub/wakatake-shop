@@ -15,7 +15,7 @@ COL_WIDTH_A = 24.875
 COL_WIDTH_OTHER = 13.0
 ROW_HEIGHT = 120.0
 FONT_NAME = "游ゴシック"
-FONT_SIZE = 16
+FONT_SIZE = 11
 
 
 def format_amount(total: float) -> str:
@@ -69,11 +69,9 @@ def fill_sheet(ws, dept_data: OrderedDict, include_amount: bool) -> None:
     row_idx = 1
     col_idx = 1
     for dept, data in dept_data.items():
-        lines = [dept] + data["names"]
+        lines = [dept]
         if include_amount:
             lines.append(format_amount(data["total"]))
-        else:
-            lines.append("")  # trailing newline に相当
         text = "\n".join(lines)
 
         cell = ws.cell(row=row_idx, column=col_idx, value=text)

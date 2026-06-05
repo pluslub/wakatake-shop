@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import font as tkfont
 import csv_to_excel
 import delivery_note
+import order_form_excel
+import order_form_summer
 
 BG = "#f5f5f5"
 ACCENT = "#2563eb"
@@ -10,6 +12,24 @@ TEXT = "#1e293b"
 TEXT_SUB = "#64748b"
 CARD_BG = "#ffffff"
 CARD_BORDER = "#e2e8f0"
+
+
+def _run_generic(fn):
+    from tkinter import messagebox
+    import os
+    try:
+        files = fn()
+        msg = "以下のファイルを生成しました:\n\n" + "\n".join(
+            os.path.basename(f) for f in files)
+        messagebox.showinfo("完了", msg)
+        for f in files:
+            os.startfile(f)
+    except Exception as e:
+        messagebox.showerror("エラー", str(e))
+
+
+def _run_order_form():
+    _run_generic(order_form_excel.run)
 
 
 TOOLS = [
@@ -22,6 +42,16 @@ TOOLS = [
         "label": "納品書を作成",
         "desc":  "納品書用CSVを読み込んでダイキン用納品書Excelを生成します",
         "func":  delivery_note.run,
+    },
+    {
+        "label": "発注書テンプレートを生成（冬季）",
+        "desc":  "2025年冬季 3種類の発注書Excelテンプレートを生成します",
+        "func":  _run_order_form,
+    },
+    {
+        "label": "発注書テンプレートを生成（夏季）",
+        "desc":  "2026年夏季 7種類の発注書・価格表Excelテンプレートを生成します",
+        "func":  lambda: _run_generic(order_form_summer.run),
     },
     # ここに追加していく
 ]
