@@ -92,7 +92,18 @@ def run() -> None:
         return
 
     if not data:
-        messagebox.showerror('エラー', 'CSVにデータがありません')
+        dept_cols = {"部署名", "氏名", "注文番号"}
+        try:
+            with open(csv_path, encoding='utf-8-sig', newline='') as _f:
+                import csv as _csv
+                _reader = _csv.DictReader(_f)
+                _cols = set(_reader.fieldnames or [])
+        except Exception:
+            _cols = set()
+        if dept_cols.issubset(_cols):
+            messagebox.showerror('エラー', '部署別CSVが選択されています。\nWordPressの「納品書用に出力」でダウンロードしたCSVを選択してください。')
+        else:
+            messagebox.showerror('エラー', 'CSVにデータがありません')
         return
 
     now = datetime.now().strftime('%Y%m%d_%H%M%S')

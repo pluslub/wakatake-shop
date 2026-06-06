@@ -2,7 +2,7 @@
 /**
  * Plugin Name: 部署別・カテゴリ別・CSVエクスポート（独立ボタン版）
  * Description: 部署別と商品カテゴリ別、それぞれの専用ボタンでCSVを書き出します。
- * Version: 1.7
+ * Version: 1.8
  */
 
 if (!defined('ABSPATH')) exit;
@@ -22,6 +22,23 @@ function render_excel_export_page() {
         FROM {$wpdb->postmeta}
         WHERE meta_key = '_billing_company' AND meta_value != ''
         GROUP BY meta_value ORDER BY meta_value ASC
+    ");
+
+    // 購入者一覧の取得
+    $purchasers = $wpdb->get_results("
+        SELECT
+            last.meta_value  as last_name,
+            first.meta_value as first_name,
+            COUNT(DISTINCT last.post_id) as order_count
+        FROM {$wpdb->postmeta} last
+        INNER JOIN {$wpdb->postmeta} first
+            ON last.post_id = first.post_id AND first.meta_key = '_billing_first_name'
+        INNER JOIN {$wpdb->posts} p ON last.post_id = p.ID
+        WHERE last.meta_key = '_billing_last_name'
+          AND p.post_type = 'shop_order'
+          AND p.post_status IN ('wc-processing', 'wc-completed')
+        GROUP BY last.meta_value, first.meta_value
+        ORDER BY last.meta_value ASC, first.meta_value ASC
     ");
 
     // カテゴリ別の注文数取得
@@ -73,6 +90,40 @@ function render_excel_export_page() {
                         <?php endforeach; ?>
                     </div>
                     <?php submit_button('部署別CSVをダウンロード'); ?>
+                </form>
+            </div>
+
+            <!-- 購入者別 -->
+            <div style="flex: 1 1 calc(50% - 10px); padding: 20px; border: 1px solid #ccc; background: #fff;">
+                <h2>購入者別に出力</h2>
+                <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                    <input type="hidden" name="action" value="my_excel_csv_export">
+                    <input type="hidden" name="export_type" value="purchaser">
+                    <?php wp_nonce_field('my_excel_export_nonce'); ?>
+
+                    <div style="margin-bottom: 6px;">
+                        <label style="font-weight: bold;">
+                            <input type="checkbox" id="purchaser-check-all" onchange="
+                                document.querySelectorAll('.purchaser-item').forEach(cb => cb.checked = this.checked);
+                            "> 全て
+                        </label>
+                    </div>
+                    <div style="max-height: 220px; overflow-y: auto; border: 1px solid #ddd; padding: 8px; margin-bottom: 10px;">
+                        <?php foreach ($purchasers as $p): ?>
+                            <label style="display: block; margin-bottom: 4px;">
+                                <input type="checkbox" class="purchaser-item"
+                                    name="target_val[]"
+                                    value="<?php echo esc_attr($p->last_name . '::' . $p->first_name); ?>"
+                                    onchange="
+                                        var all = document.querySelectorAll('.purchaser-item');
+                                        var checked = document.querySelectorAll('.purchaser-item:checked');
+                                        document.getElementById('purchaser-check-all').checked = all.length === checked.length;
+                                    ">
+                                <?php echo esc_html($p->last_name . ' ' . $p->first_name); ?> （<?php echo (int)$p->order_count; ?>件）
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php submit_button('購入者別CSVをダウンロード'); ?>
                 </form>
             </div>
 
@@ -221,9 +272,47 @@ add_action('admin_post_my_excel_csv_export', function() {
         exit;
     }
 
-    // 部署別・カテゴリ別：注文単位で出力
     $base_args = ['limit' => -1, 'status' => ['wc-processing', 'wc-completed']];
-    $orders    = [];
+
+    // 購入者別：氏名・合計金額のみ出力
+    if ($type === 'purchaser') {
+        $vals = array_map('sanitize_text_field', (array)($_POST['target_val'] ?? []));
+        if (empty($vals)) wp_die('購入者を1つ以上選択してください。');
+
+        $all_orders = [];
+        foreach ($vals as $v) {
+            [$last, $first] = array_pad(explode('::', $v, 2), 2, '');
+            foreach (wc_get_orders(array_merge($base_args, [
+                'billing_last_name'  => $last,
+                'billing_first_name' => $first,
+            ])) as $order) {
+                $all_orders[$order->get_id()] = $order;
+            }
+        }
+
+        $label    = count($vals) === 1
+            ? str_replace('::', ' ', $vals[0])
+            : str_replace('::', ' ', $vals[0]) . '_他' . (count($vals) - 1) . '件';
+        $filename = '購入者別_' . $label;
+
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . urlencode($filename) . '_' . date('Ymd') . '.csv"');
+
+        $output = fopen('php://output', 'w');
+        fwrite($output, "\xEF\xBB\xBF");
+        fputcsv($output, ['氏名', '合計金額(税込)']);
+        foreach ($all_orders as $order) {
+            fputcsv($output, [
+                $order->get_billing_last_name() . ' ' . $order->get_billing_first_name(),
+                $order->get_total(),
+            ]);
+        }
+        fclose($output);
+        exit;
+    }
+
+    // 部署別・カテゴリ別：注文単位で出力
+    $orders = [];
 
     if ($type === 'category') {
         $vals = array_map('sanitize_text_field', (array)($_POST['target_val'] ?? []));
