@@ -2,7 +2,7 @@
 /**
  * Plugin Name: 部署別・カテゴリ別・CSVエクスポート（独立ボタン版）
  * Description: 部署別と商品カテゴリ別、それぞれの専用ボタンでCSVを書き出します。
- * Version: 1.8
+ * Version: 2.0
  */
 
 if (!defined('ABSPATH')) exit;
@@ -161,12 +161,24 @@ function render_excel_export_page() {
             <!-- 納品書用 -->
             <div style="flex: 1 1 calc(50% - 10px); padding: 20px; border: 1px solid #ccc; background: #fff;">
                 <h2>納品書用に出力</h2>
-                <p>処理中・完了の全注文を商品ごとに集計して出力します。</p>
+                <p>処理中・完了の全注文を商品ごとに集計して出力します。<br>管理ツール「ダイキン用納品書」用のCSVです。</p>
                 <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
                     <input type="hidden" name="action" value="my_excel_csv_export">
                     <input type="hidden" name="export_type" value="delivery">
                     <?php wp_nonce_field('my_excel_export_nonce'); ?>
                     <?php submit_button('納品書用CSVをダウンロード', 'secondary'); ?>
+                </form>
+            </div>
+
+            <!-- 注文書用 -->
+            <div style="flex: 1 1 calc(50% - 10px); padding: 20px; border: 1px solid #ccc; background: #fff;">
+                <h2>注文書用に出力</h2>
+                <p>処理中・完了の全注文を商品ごとに集計して出力します。<br>管理ツール「注文書作成」用のCSVです。</p>
+                <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                    <input type="hidden" name="action" value="my_excel_csv_export">
+                    <input type="hidden" name="export_type" value="order_form">
+                    <?php wp_nonce_field('my_excel_export_nonce'); ?>
+                    <?php submit_button('注文書用CSVをダウンロード', 'secondary'); ?>
                 </form>
             </div>
 
@@ -234,6 +246,7 @@ add_action('admin_post_my_excel_csv_export', function() {
         $rows = $wpdb->get_results("
             SELECT
                 woi.order_item_name as product_name,
+                MIN(pm_sku.meta_value) as product_sku,
                 SUM(CAST(woim_qty.meta_value AS UNSIGNED)) as total_qty,
                 SUM(CAST(woim_total.meta_value AS DECIMAL(10,2)) + CAST(woim_tax.meta_value AS DECIMAL(10,2))) as total_amount
             FROM {$wpdb->prefix}woocommerce_order_items woi
@@ -243,6 +256,10 @@ add_action('admin_post_my_excel_csv_export', function() {
                 ON woi.order_item_id = woim_total.order_item_id AND woim_total.meta_key = '_line_total'
             INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta woim_tax
                 ON woi.order_item_id = woim_tax.order_item_id AND woim_tax.meta_key = '_line_tax'
+            INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta woim_pid
+                ON woi.order_item_id = woim_pid.order_item_id AND woim_pid.meta_key = '_product_id'
+            LEFT JOIN {$wpdb->postmeta} pm_sku
+                ON CAST(woim_pid.meta_value AS UNSIGNED) = pm_sku.post_id AND pm_sku.meta_key = '_sku'
             INNER JOIN {$wpdb->posts} o ON woi.order_id = o.ID
             WHERE woi.order_item_type = 'line_item'
               AND o.post_type = 'shop_order'
@@ -256,16 +273,67 @@ add_action('admin_post_my_excel_csv_export', function() {
 
         $output = fopen('php://output', 'w');
         fwrite($output, "\xEF\xBB\xBF");
-        fputcsv($output, ['商品名', '単価(税込)', '合計数量', '合計金額(税込)']);
+        fputcsv($output, ['商品名', '商品コード', '単価(税込)', '合計数量', '合計金額(税込)']);
         foreach ($rows as $row) {
             $qty        = (int)$row->total_qty;
             $total      = (float)$row->total_amount;
             $unit_price = $qty > 0 ? round($total / $qty) : 0;
             fputcsv($output, [
                 $row->product_name,
+                $row->product_sku ?? '',
                 number_format($unit_price, 0),
                 $qty,
                 number_format($total, 0),
+            ]);
+        }
+        fclose($output);
+        exit;
+    }
+
+    // 注文書用：商品ごとに集計（カテゴリ・商品コード・数量）
+    if ($type === 'order_form') {
+        $rows = $wpdb->get_results("
+            SELECT
+                woi.order_item_name as product_name,
+                MIN(pm_sku.meta_value) as product_sku,
+                MIN(cats.categories) as product_category,
+                SUM(CAST(woim_qty.meta_value AS UNSIGNED)) as total_qty
+            FROM {$wpdb->prefix}woocommerce_order_items woi
+            INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta woim_qty
+                ON woi.order_item_id = woim_qty.order_item_id AND woim_qty.meta_key = '_qty'
+            INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta woim_pid
+                ON woi.order_item_id = woim_pid.order_item_id AND woim_pid.meta_key = '_product_id'
+            LEFT JOIN {$wpdb->postmeta} pm_sku
+                ON CAST(woim_pid.meta_value AS UNSIGNED) = pm_sku.post_id AND pm_sku.meta_key = '_sku'
+            LEFT JOIN (
+                SELECT tr.object_id as product_id,
+                       GROUP_CONCAT(t.name ORDER BY t.name SEPARATOR ' | ') as categories
+                FROM {$wpdb->prefix}term_relationships tr
+                INNER JOIN {$wpdb->prefix}term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                INNER JOIN {$wpdb->prefix}terms t ON tt.term_id = t.term_id
+                WHERE tt.taxonomy = 'product_cat'
+                GROUP BY tr.object_id
+            ) cats ON CAST(woim_pid.meta_value AS UNSIGNED) = cats.product_id
+            INNER JOIN {$wpdb->posts} o ON woi.order_id = o.ID
+            WHERE woi.order_item_type = 'line_item'
+              AND o.post_type = 'shop_order'
+              AND o.post_status IN ('wc-processing', 'wc-completed')
+            GROUP BY woi.order_item_name
+            ORDER BY woi.order_item_name ASC
+        ");
+
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . urlencode('注文書用_' . date('Ymd')) . '.csv"');
+
+        $output = fopen('php://output', 'w');
+        fwrite($output, "\xEF\xBB\xBF");
+        fputcsv($output, ['商品名', 'カテゴリ', '商品コード', '合計数量']);
+        foreach ($rows as $row) {
+            fputcsv($output, [
+                $row->product_name,
+                $row->product_category ?? '',
+                $row->product_sku ?? '',
+                (int)$row->total_qty,
             ]);
         }
         fclose($output);

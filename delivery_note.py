@@ -102,6 +102,8 @@ def run() -> None:
             _cols = set()
         if dept_cols.issubset(_cols):
             messagebox.showerror('エラー', '部署別CSVが選択されています。\nWordPressの「納品書用に出力」でダウンロードしたCSVを選択してください。')
+        elif 'カテゴリ' in _cols and '単価(税込)' not in _cols:
+            messagebox.showerror('エラー', '注文書用CSVが選択されています。\nWordPressの「納品書用に出力」でダウンロードしたCSVを選択してください。')
         else:
             messagebox.showerror('エラー', 'CSVにデータがありません')
         return
