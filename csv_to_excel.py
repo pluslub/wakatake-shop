@@ -11,9 +11,9 @@ from openpyxl.styles import Font, Alignment, Border, Side
 
 
 COLS = 5
-COL_WIDTH_A = 24.875
-COL_WIDTH_OTHER = 13.0
-ROW_HEIGHT = 120.0
+COL_WIDTH_A = 16.88
+COL_WIDTH_OTHER = 16.88
+ROW_HEIGHT = 71.25
 FONT_NAME = "游ゴシック"
 FONT_SIZE = 11
 
@@ -29,6 +29,9 @@ def read_csv(filepath: str) -> OrderedDict:
     dept_data: OrderedDict = OrderedDict()
     with open(filepath, encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
+        if reader.fieldnames:
+            reader.fieldnames = [k.lstrip('﻿').strip() for k in reader.fieldnames]
+        detected_cols = list(reader.fieldnames or [])
         for row in reader:
             dept = row.get("部署名", "").strip()
             name = row.get("氏名", "").strip()
@@ -44,6 +47,11 @@ def read_csv(filepath: str) -> OrderedDict:
             dept_data[dept]["total"] += amount
             if name and name not in dept_data[dept]["names"]:
                 dept_data[dept]["names"].append(name)
+    if not dept_data:
+        delivery_cols = {"商品名", "単価(税込)", "合計数量"}
+        if delivery_cols.issubset(set(detected_cols)):
+            raise ValueError("納品書用CSVが選択されています。\nWordPressの「部署別に出力」でダウンロードしたCSVを選択してください。")
+        raise ValueError(f"「部署名」列にデータが見つかりません\n検出された列: {detected_cols}")
     return dept_data
 
 
@@ -52,30 +60,31 @@ def make_thin_border() -> Border:
     return Border(top=thin, bottom=thin, left=thin, right=thin)
 
 
-def apply_style(cell, border: Border) -> None:
-    cell.font = Font(name=FONT_NAME, size=FONT_SIZE)
+def apply_style(cell, border: Border, font_size: int = FONT_SIZE) -> None:
+    cell.font = Font(name=FONT_NAME, size=font_size)
     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     cell.border = border
 
 
-def fill_sheet(ws, dept_data: OrderedDict, include_amount: bool) -> None:
+def fill_sheet(ws, dept_data: OrderedDict, include_amount: bool,
+               col_width: float = COL_WIDTH_A, row_height: float = ROW_HEIGHT,
+               font_size: int = FONT_SIZE) -> None:
     border = make_thin_border()
     col_letters = [chr(ord("A") + i) for i in range(COLS)]
 
-    ws.column_dimensions["A"].width = COL_WIDTH_A
-    for letter in col_letters[1:]:
-        ws.column_dimensions[letter].width = COL_WIDTH_OTHER
+    for letter in col_letters:
+        ws.column_dimensions[letter].width = col_width
 
     row_idx = 1
     col_idx = 1
     for dept, data in dept_data.items():
-        lines = [dept]
+        lines = dept.split(" ", 1) if " " in dept else [dept]
         if include_amount:
             lines.append(format_amount(data["total"]))
         text = "\n".join(lines)
 
         cell = ws.cell(row=row_idx, column=col_idx, value=text)
-        apply_style(cell, border)
+        apply_style(cell, border, font_size)
 
         col_idx += 1
         if col_idx > COLS:
@@ -84,9 +93,9 @@ def fill_sheet(ws, dept_data: OrderedDict, include_amount: bool) -> None:
 
     max_row = row_idx if col_idx > 1 else row_idx - 1
     for i in range(1, max_row + 1):
-        ws.row_dimensions[i].height = ROW_HEIGHT
+        ws.row_dimensions[i].height = row_height
 
-    ws.page_setup.paperSize = 9          # A4
+    ws.page_setup.paperSize = 9
     ws.page_setup.orientation = "landscape"
 
 
@@ -98,7 +107,8 @@ def create_excel(dept_data: OrderedDict, output_path: str) -> None:
     fill_sheet(ws1, dept_data, include_amount=True)
 
     ws2 = wb.create_sheet("仕分け時ダンボール貼り付け用")
-    fill_sheet(ws2, dept_data, include_amount=False)
+    fill_sheet(ws2, dept_data, include_amount=False,
+               col_width=24.25, row_height=120, font_size=16)
 
     ws3 = wb.create_sheet("組合事務所での集金用")
     fill_sheet(ws3, dept_data, include_amount=True)
@@ -118,10 +128,6 @@ def run() -> None:
         dept_data = read_csv(csv_path)
     except Exception as e:
         messagebox.showerror("エラー", f"CSV読み込みエラー:\n{e}")
-        return
-
-    if not dept_data:
-        messagebox.showerror("エラー", "CSVにデータがありません")
         return
 
     now = datetime.now().strftime("%Y%m%d_%H%M%S")

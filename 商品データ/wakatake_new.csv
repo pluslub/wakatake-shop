@@ -1,0 +1,12 @@
+﻿ID,タイプ,SKU,GTIN、UPC、EAN、ISBN,名前,公開済み,オススメですか ?,カタログでの表示,簡単な説明,説明,セール価格の開始日,セール価格の終了日,課税ステータス,税区分,在庫の有無,在庫,在庫量わずか,お取り寄せを許可する ?,個別に販売しますか ?,重量 (kg),長さ(cm),幅 (cm),高さ (cm),カスタマーレビューを許可しますか ?,注意事項,セール価格,標準価格,カテゴリー,タグ,配送クラス,画像,ダウンロード制限,ダウンロード有効期限日,親,セット販売商品,アップセル,クロスセル,外部 URL,ボタンのテキスト,位置,ブランド
+,simple,w-1,,いちごのほっぺ（5個）,1,,visible,,,,,taxable,,1,,,,,,,,,,,,250,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-1.png,,,,,,,,,0,
+,simple,w-2,,天使のほっぺ（5個）,1,,visible,,,,,taxable,,1,,,,,,,,,,,,200,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-2.png,,,,,,,,,0,
+,simple,w-3,,キャラメルラスク（90g）,1,,visible,,,,,taxable,,1,,,,,,,,,,,,400,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-3.png,,,,,,,,,0,
+,simple,w-4,,シュガーラスク（80g）,1,,visible,,,,,taxable,,1,,,,,,,,,,,,400,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-4.png,,,,,,,,,0,
+,simple,w-5,,ガーリックラスク（75g）,1,,visible,,,,,taxable,,1,,,,,,,,,,,,400,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-5.png,,,,,,,,,0,
+,simple,w-6,,お菓子詰め合わせセット,1,,visible,,,,,taxable,,1,,,,,,,,,,,,1400,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-6.png,,,,,,,,,0,
+,simple,w-7,,おからクッキー（きなこ）,1,,visible,,,,,taxable,,1,,,,,,,,,,,,300,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-7.png,,,,,,,,,0,
+,simple,w-8,,おからクッキー（プレーン）,1,,visible,,,,,taxable,,1,,,,,,,,,,,,300,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-8.png,,,,,,,,,0,
+,simple,w-10,,手作り木製クリップ　4個入り,1,,visible,,,,,taxable,,1,,,,,,,,,,,,150,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-10.png,,,,,,,,,0,
+,simple,w-11,,エコたわし　2個入り,1,,visible,,,,,taxable,,1,,,,,,,,,,,,100,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-11.png,,,,,,,,,0,
+,simple,w-12,,エコたわし　10個入り,1,,visible,,,,,taxable,,1,,,,,,,,,,,,400,若竹会,,,https://wakatake.info/shop/wp-content/uploads/2026/06/w-12.png,,,,,,,,,0,
