@@ -3,6 +3,7 @@ from tkinter import font as tkfont
 import csv_to_excel
 import delivery_note
 import order_form
+import dept_product_list
 
 BG = "#f5f5f5"
 ACCENT = "#2563eb"
@@ -28,6 +29,11 @@ TOOLS = [
         "label": "注文書を作成",
         "desc":  "納品書用CSVを読み込んで各注文書テンプレートに個数を自動入力します",
         "func":  order_form.run,
+    },
+    {
+        "label": "部署別商品一覧を作成",
+        "desc":  "部署別CSVを読み込んで部署ごとのシートに商品・数量をまとめます",
+        "func":  dept_product_list.run,
     },
     # ここに追加していく
 ]

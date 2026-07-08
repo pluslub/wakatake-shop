@@ -8,7 +8,7 @@ from tkinter import filedialog, messagebox
 import openpyxl
 
 TEMPLATE_NAME = 'ダイキン用納品書（総まとめ）.xlsx'
-DATA_START_ROW = 7
+DATA_START_ROW = 8
 DATA_END_ROW = 167
 
 
