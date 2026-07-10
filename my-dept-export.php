@@ -2,7 +2,7 @@
 /**
  * Plugin Name: 部署別・カテゴリ別・CSVエクスポート（独立ボタン版）
  * Description: 部署別と商品カテゴリ別、それぞれの専用ボタンでCSVを書き出します。
- * Version: 2.0
+ * Version: 2.1
  */
 
 if (!defined('ABSPATH')) exit;
@@ -320,7 +320,19 @@ add_action('admin_post_my_excel_csv_export', function() {
 
     // 注文書用：商品ごとに集計（カテゴリ・商品コード・数量）
     if ($type === 'order_form') {
-        $rows = $wpdb->get_results("
+        // dept_product_list.py の CATEGORY_ORDER と揃えること
+        $category_order = [
+            '若竹会',
+            '味と暮らしの特選街',
+            'カレーフェスタ',
+            'お家で手軽に本格派カレー',
+            'まぜごはん・玄米ごはん',
+            'みそ汁・フリーズドライ',
+            '健康茶',
+        ];
+        $field_ph = implode(',', array_fill(0, count($category_order), '%s'));
+
+        $rows = $wpdb->get_results($wpdb->prepare("
             SELECT
                 woi.order_item_name as product_name,
                 MIN(pm_sku.meta_value) as product_sku,
@@ -347,8 +359,11 @@ add_action('admin_post_my_excel_csv_export', function() {
               AND o.post_type = 'shop_order'
               AND o.post_status IN ('wc-processing', 'wc-completed')
             GROUP BY woi.order_item_name
-            ORDER BY woi.order_item_name ASC
-        ");
+            ORDER BY
+                (FIELD(MIN(cats.categories), $field_ph) = 0),
+                FIELD(MIN(cats.categories), $field_ph),
+                woi.order_item_name ASC
+        ", array_merge($category_order, $category_order)));
 
         header('Content-Type: text/csv; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . urlencode('注文書用_' . date('Ymd')) . '.csv"');
@@ -455,9 +470,10 @@ add_action('admin_post_my_excel_csv_export', function() {
         $items = [];
         $cats  = [];
         foreach ($order->get_items() as $item) {
-            $items[] = $item->get_name() . ' x' . $item->get_quantity();
-            $terms = get_the_terms($item->get_product_id(), 'product_cat');
-            if ($terms) {
+            $terms       = get_the_terms($item->get_product_id(), 'product_cat');
+            $item_cat    = ($terms && !is_wp_error($terms)) ? $terms[0]->name : '';
+            $items[]     = $item->get_name() . '[' . $item_cat . ']' . ' x' . $item->get_quantity();
+            if ($terms && !is_wp_error($terms)) {
                 foreach ($terms as $term) {
                     $cats[] = $term->name;
                 }
